@@ -165,24 +165,48 @@ class GitHubUpdateManager(
 
         val fetchResult = withContext(Dispatchers.IO) {
             runCatching {
-                val request = Request.Builder()
-                    .url(versionJsonUrl)
-                    .header("Accept", "application/json")
-                    .header("User-Agent", "UltimateRiderBooster/${currentVersionNameProvider()}")
-                    .get()
-                    .build()
+                fun fetchManifestString(targetUrl: String): String {
+                    val request = Request.Builder()
+                        .url(targetUrl)
+                        .header("Accept", "application/json")
+                        .header("User-Agent", "UltimateRiderBooster/${currentVersionNameProvider()}")
+                        .get()
+                        .build()
 
-                httpClient.newCall(request).execute().use { response ->
-                    val rateRemaining = response.header("X-RateLimit-Remaining")
-                    if (response.code == 403 && rateRemaining == "0" || response.code == 429) {
-                        throw RateLimitException("GitHub rate limit reached. Try again later.")
+                    httpClient.newCall(request).execute().use { response ->
+                        val rateRemaining = response.header("X-RateLimit-Remaining")
+                        if (response.code == 403 && rateRemaining == "0" || response.code == 429) {
+                            throw RateLimitException("GitHub rate limit reached. Try again later.")
+                        }
+                        if (response.code == 404) {
+                            throw java.io.FileNotFoundException("HTTP 404 for $targetUrl")
+                        }
+                        if (!response.isSuccessful) {
+                            throw IllegalStateException("GitHub returned HTTP ${response.code}. Verify repository & version.json exist.")
+                        }
+                        return response.body?.string() ?: throw IllegalStateException("Empty version.json response.")
                     }
-                    if (!response.isSuccessful) {
-                        throw IllegalStateException("GitHub returned HTTP ${response.code}. Verify repository & version.json exist.")
-                    }
-                    val body = response.body?.string() ?: throw IllegalStateException("Empty version.json response.")
-                    VersionManifestParser.parseAndValidate(body).getOrThrow()
                 }
+
+                val body = try {
+                    fetchManifestString(versionJsonUrl)
+                } catch (e: java.io.FileNotFoundException) {
+                    val fallback = UpdateConfig.FALLBACK_VERSION_JSON_URL
+                    if (fallback != versionJsonUrl && UpdateConfig.isConfigured(fallback)) {
+                        try {
+                            fetchManifestString(fallback)
+                        } catch (e2: Exception) {
+                            throw IllegalStateException(
+                                "GitHub returned HTTP 404. Ensure repository '${UpdateConfig.GITHUB_OWNER}/${UpdateConfig.GITHUB_REPOSITORY}' is Public in GitHub Settings and release v1.1.1 is published."
+                            )
+                        }
+                    } else {
+                        throw IllegalStateException(
+                            "GitHub returned HTTP 404. Ensure repository '${UpdateConfig.GITHUB_OWNER}/${UpdateConfig.GITHUB_REPOSITORY}' is Public in GitHub Settings and release v1.1.1 is published."
+                        )
+                    }
+                }
+                VersionManifestParser.parseAndValidate(body).getOrThrow()
             }
         }
 

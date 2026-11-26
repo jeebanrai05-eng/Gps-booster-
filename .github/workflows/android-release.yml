@@ -17,9 +17,9 @@ on:
         default: true
         type: boolean
       release_tag:
-        description: 'Release tag name (only used when create_release is true, e.g. v1.01)'
+        description: 'Release tag name (only used when create_release is true, e.g. v1.1.1)'
         required: false
-        default: 'v1.01'
+        default: 'v1.1.1'
         type: string
 
 permissions:
@@ -301,6 +301,7 @@ jobs:
             SHA-256: `${{ steps.metadata.outputs.sha256 }}`
           files: |
             release_assets/Ultimate-Rider-Booster.apk
+            version.json
 
       - name: Commit and publish updated version.json to main
         run: |

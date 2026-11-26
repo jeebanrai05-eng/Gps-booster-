@@ -14,6 +14,9 @@ object UpdateConfig {
     const val VERSION_JSON_URL =
         "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPOSITORY/$GITHUB_BRANCH/version.json"
 
+    const val FALLBACK_VERSION_JSON_URL =
+        "https://github.com/$GITHUB_OWNER/$GITHUB_REPOSITORY/releases/latest/download/version.json"
+
     const val RELEASES_PAGE_URL =
         "https://github.com/$GITHUB_OWNER/$GITHUB_REPOSITORY/releases"
 
