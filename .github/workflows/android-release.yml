@@ -1,16 +1,86 @@
-name: Android Release APK & Version Publish
+name: Android Build, Test & Release APK
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Build signed release APK and publish GitHub Release?'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release tag name (only used when create_release is true, e.g. v1.01)'
+        required: false
+        default: 'v1.01'
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  build_and_release:
-    name: Test, Lint, Sign & Publish APK
+  ci_build:
+    name: Test, Lint & Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Ensure debug keystore exists for CI
+        run: |
+          if [ ! -f "debug.keystore" ]; then
+            if [ -f "debug.keystore.base64" ]; then
+              base64 --decode debug.keystore.base64 > debug.keystore
+            else
+              keytool -genkeypair -v -keystore debug.keystore \
+                -storepass android -alias androiddebugkey -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+          fi
+
+      - name: Run unit and Robolectric tests
+        run: gradle :app:testDebugUnitTest --no-daemon --console=plain
+
+      - name: Run Android lint checks
+        run: gradle :app:lintDebug --no-daemon --console=plain
+
+      - name: Build Debug APK
+        run: gradle :app:assembleDebug --no-daemon --console=plain
+
+      - name: Upload Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ultimate-Rider-Booster-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  release_apk:
+    name: Sign & Publish Release APK
+    needs: ci_build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +101,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: wrapper
+          gradle-version: '9.3.1'
 
       - name: Validate signing secrets
         env:
@@ -41,15 +111,9 @@ jobs:
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS_VAL" ] || [ -z "$KEY_PASS" ]; then
-            echo "::error::Missing required Android signing secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD)."
+            echo "::error::Missing required GitHub Actions signing secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
             exit 1
           fi
-
-      - name: Run unit and Robolectric tests
-        run: gradle :app:testDebugUnitTest --no-daemon
-
-      - name: Run Android lint checks
-        run: gradle :app:lintDebug --no-daemon
 
       - name: Decode production keystore securely
         env:
@@ -67,7 +131,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --no-daemon
+        run: gradle :app:assembleRelease --no-daemon --console=plain
 
       - name: Prepare release artifact and SHA-256 checksum
         id: metadata
@@ -84,7 +148,12 @@ jobs:
 
           APK_SHA256=$(sha256sum "$APK_OUT" | awk '{print $1}')
           APK_SIZE=$(stat -c%s "$APK_OUT")
-          TAG_NAME="${GITHUB_REF_NAME}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          else
+            TAG_NAME="${{ inputs.release_tag }}"
+          fi
           VERSION_NAME="${TAG_NAME#v}"
 
           VERSION_CODE=$(grep -E "versionCode\s*=" app/build.gradle.kts | head -n1 | grep -oE "[0-9]+")
@@ -157,6 +226,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "version.json unchanged; skipping commit."
           else
-            git commit -m "chore(release): publish version.json for ${{ steps.metadata.outputs.tag }}"
+            git commit -m "chore(release): publish version.json for ${{ steps.metadata.outputs.tag }} [skip ci]"
             git push origin main
           fi

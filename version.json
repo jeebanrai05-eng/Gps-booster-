@@ -3,7 +3,7 @@
   "versionName": "1.01",
   "releaseTitle": "Ultimate Rider Booster v1.01",
   "releaseNotes": "v1.01 update: Smart GPS Recovery Engine, Talabat Rider multi-method detection & manual picker, GitHub release workflow, and verified SHA-256 self-update support.",
-  "apkUrl": "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/releases/download/v1.01/Ultimate-Rider-Booster.apk",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Gps-booster-/releases/download/v1.01/Ultimate-Rider-Booster.apk",
   "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "mandatory": false,
   "minSupportedVersionCode": 1

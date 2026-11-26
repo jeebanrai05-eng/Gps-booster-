@@ -7,8 +7,8 @@ package com.example.update
  * details before publishing releases. No code changes anywhere else are needed.
  */
 object UpdateConfig {
-    const val GITHUB_OWNER = "YOUR_GITHUB_USERNAME"
-    const val GITHUB_REPOSITORY = "YOUR_REPOSITORY_NAME"
+    const val GITHUB_OWNER = "jeebanrai05-eng"
+    const val GITHUB_REPOSITORY = "Gps-booster-"
     const val GITHUB_BRANCH = "main"
 
     const val VERSION_JSON_URL =
@@ -20,7 +20,8 @@ object UpdateConfig {
     const val AUTO_CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L // 6 hours
 
     fun isConfigured(url: String = VERSION_JSON_URL): Boolean {
-        return !url.contains("YOUR_GITHUB_USERNAME", ignoreCase = true) &&
+        return url.startsWith("https://", ignoreCase = true) &&
+            !url.contains("YOUR_GITHUB_USERNAME", ignoreCase = true) &&
             !url.contains("YOUR_REPOSITORY_NAME", ignoreCase = true)
     }
 }

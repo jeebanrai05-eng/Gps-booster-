@@ -30,8 +30,16 @@ class ExampleUnitTest {
 
     @Test
     fun updateConfig_detectsPlaceholderVsConfiguredUrls() {
-        assertFalse(UpdateConfig.isConfigured(UpdateConfig.VERSION_JSON_URL))
-        assertTrue(UpdateConfig.isConfigured("https://raw.githubusercontent.com/acme/rider-booster/main/version.json"))
+        assertTrue(UpdateConfig.isConfigured(UpdateConfig.VERSION_JSON_URL))
+        assertEquals(
+            "https://raw.githubusercontent.com/jeebanrai05-eng/Gps-booster-/main/version.json",
+            UpdateConfig.VERSION_JSON_URL
+        )
+        assertFalse(
+            UpdateConfig.isConfigured(
+                "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/main/version.json"
+            )
+        )
     }
 
     @Test
