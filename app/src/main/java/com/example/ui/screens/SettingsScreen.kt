@@ -377,15 +377,37 @@ fun SettingsScreen(
                         onRetryInstallVerifiedApk = onRetryInstallVerifiedApk
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    if (checkStatus is UpdateCheckStatus.UpdateAvailable) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onCheckForUpdates,
+                                enabled = updateState.checkStatus != UpdateCheckStatus.Checking,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("settings_check_updates_button")
+                            ) {
+                                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Check for Updates")
+                            }
+
+                            Button(
+                                onClick = { onDownloadAndInstallUpdate(checkStatus.manifest) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = colors.successGreen)
+                            ) {
+                                Text("Update Now", color = MaterialTheme.colorScheme.onSecondary)
+                            }
+                        }
+                    } else {
                         OutlinedButton(
                             onClick = onCheckForUpdates,
                             enabled = updateState.checkStatus != UpdateCheckStatus.Checking,
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .testTag("settings_check_updates_button")
                         ) {
                             Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -394,25 +416,6 @@ fun SettingsScreen(
                                 if (updateState.checkStatus == UpdateCheckStatus.Checking) "Checking..."
                                 else "Check for Updates"
                             )
-                        }
-
-                        if (checkStatus is UpdateCheckStatus.UpdateAvailable) {
-                            Button(
-                                onClick = { onDownloadAndInstallUpdate(checkStatus.manifest) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = colors.successGreen)
-                            ) {
-                                Text("Update Now", color = MaterialTheme.colorScheme.onSecondary)
-                            }
-                        } else {
-                            OutlinedButton(
-                                onClick = onOpenReleasesPage,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Releases")
-                            }
                         }
                     }
                 }

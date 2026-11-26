@@ -14,7 +14,7 @@ on:
       create_release:
         description: 'Build signed release APK and publish GitHub Release?'
         required: false
-        default: false
+        default: true
         type: boolean
       release_tag:
         description: 'Release tag name (only used when create_release is true, e.g. v1.01)'

@@ -145,23 +145,23 @@ fun AppUpdateCard(
                 onRetryInstallVerifiedApk = onRetryInstallVerifiedApk
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onCheckForUpdates,
-                    enabled = checkStatus != UpdateCheckStatus.Checking,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("dashboard_check_updates_button")
+            if (checkStatus is UpdateCheckStatus.UpdateAvailable) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Check for Updates")
-                }
+                    OutlinedButton(
+                        onClick = onCheckForUpdates,
+                        enabled = checkStatus != UpdateCheckStatus.Checking,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("dashboard_check_updates_button")
+                    ) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Check for Updates")
+                    }
 
-                if (checkStatus is UpdateCheckStatus.UpdateAvailable) {
                     Button(
                         onClick = onOpenUpdateDialog,
                         modifier = Modifier
@@ -173,15 +173,18 @@ fun AppUpdateCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Update Now", color = MaterialTheme.colorScheme.onSecondary)
                     }
-                } else {
-                    OutlinedButton(
-                        onClick = onOpenReleasesPage,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("GitHub Releases")
-                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onCheckForUpdates,
+                    enabled = checkStatus != UpdateCheckStatus.Checking,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("dashboard_check_updates_button")
+                ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Check for Updates")
                 }
             }
         }
