@@ -40,16 +40,58 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configure preinstalled Android SDK
+        run: |
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK_DIR" ]; then
+            echo "::error::Android SDK directory not found at $SDK_DIR"
+            exit 1
+          fi
+
+          if [ -x "${SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            CMDLINE_BIN_DIR="${SDK_DIR}/cmdline-tools/latest/bin"
+          else
+            FALLBACK_SDKMANAGER=$(find "${SDK_DIR}/cmdline-tools" -maxdepth 2 -name "sdkmanager" -type f 2>/dev/null | head -n1 || true)
+            if [ -z "$FALLBACK_SDKMANAGER" ]; then
+              echo "::error::Preinstalled sdkmanager not found under ${SDK_DIR}/cmdline-tools"
+              exit 1
+            fi
+            CMDLINE_BIN_DIR="$(dirname "$FALLBACK_SDKMANAGER")"
+          fi
+
+          echo "ANDROID_HOME=${SDK_DIR}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=${SDK_DIR}" >> "$GITHUB_ENV"
+          echo "${CMDLINE_BIN_DIR}" >> "$GITHUB_PATH"
+          echo "${SDK_DIR}/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Verify sdkmanager, accept licenses & install required SDK packages
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          sdkmanager --version
+
+          set +o pipefail
+          yes | sdkmanager --licenses > /dev/null
+          set -o pipefail
+
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "platforms;android-36.1" \
+            "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
 
-      - name: Ensure debug keystore exists for CI
+      - name: Ensure Gradle wrapper and debug keystore exist for CI
         run: |
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper --gradle-version 9.3.1
+          fi
+          chmod +x ./gradlew
+
           if [ ! -f "debug.keystore" ]; then
             if [ -f "debug.keystore.base64" ]; then
               base64 --decode debug.keystore.base64 > debug.keystore
@@ -62,13 +104,13 @@ jobs:
           fi
 
       - name: Run unit and Robolectric tests
-        run: gradle :app:testDebugUnitTest --no-daemon --console=plain
+        run: ./gradlew testDebugUnitTest --no-daemon --console=plain
 
       - name: Run Android lint checks
-        run: gradle :app:lintDebug --no-daemon --console=plain
+        run: ./gradlew lintDebug --no-daemon --console=plain
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon --console=plain
+        run: ./gradlew assembleDebug --no-daemon --console=plain
 
       - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
@@ -95,13 +137,57 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configure preinstalled Android SDK
+        run: |
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK_DIR" ]; then
+            echo "::error::Android SDK directory not found at $SDK_DIR"
+            exit 1
+          fi
+
+          if [ -x "${SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            CMDLINE_BIN_DIR="${SDK_DIR}/cmdline-tools/latest/bin"
+          else
+            FALLBACK_SDKMANAGER=$(find "${SDK_DIR}/cmdline-tools" -maxdepth 2 -name "sdkmanager" -type f 2>/dev/null | head -n1 || true)
+            if [ -z "$FALLBACK_SDKMANAGER" ]; then
+              echo "::error::Preinstalled sdkmanager not found under ${SDK_DIR}/cmdline-tools"
+              exit 1
+            fi
+            CMDLINE_BIN_DIR="$(dirname "$FALLBACK_SDKMANAGER")"
+          fi
+
+          echo "ANDROID_HOME=${SDK_DIR}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=${SDK_DIR}" >> "$GITHUB_ENV"
+          echo "${CMDLINE_BIN_DIR}" >> "$GITHUB_PATH"
+          echo "${SDK_DIR}/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Verify sdkmanager, accept licenses & install required SDK packages
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          sdkmanager --version
+
+          set +o pipefail
+          yes | sdkmanager --licenses > /dev/null
+          set -o pipefail
+
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "platforms;android-36.1" \
+            "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
+
+      - name: Ensure Gradle wrapper exists for CI
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper --gradle-version 9.3.1
+          fi
+          chmod +x ./gradlew
 
       - name: Validate signing secrets
         env:
@@ -131,7 +217,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --no-daemon --console=plain
+        run: ./gradlew assembleRelease --no-daemon --console=plain
 
       - name: Prepare release artifact and SHA-256 checksum
         id: metadata
@@ -220,6 +306,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -- gradle/wrapper/gradle-wrapper.properties || true
+          rm -f gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar
           git fetch origin main || true
           git checkout -B main origin/main || git checkout -B main
           git add version.json
