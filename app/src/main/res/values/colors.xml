@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rider_deep_black">#FF07090D</color>
+    <color name="rider_dark_navy">#FF0B1220</color>
+    <color name="rider_electric_blue">#FF168BFF</color>
+    <color name="rider_neon_cyan">#FF00E5FF</color>
+    <color name="rider_orange">#FFFF8A00</color>
+</resources>

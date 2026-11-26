@@ -1,0 +1,162 @@
+name: Android Release APK & Version Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    name: Test, Lint, Sign & Publish APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Validate signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS_VAL: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS_VAL" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Missing required Android signing secrets (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD)."
+            exit 1
+          fi
+
+      - name: Run unit and Robolectric tests
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Run Android lint checks
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Decode production keystore securely
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 --decode > "${{ runner.temp }}/release-keystore.jks"
+          if [ ! -s "${{ runner.temp }}/release-keystore.jks" ]; then
+            echo "::error::Decoded keystore file is empty."
+            exit 1
+          fi
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release-keystore.jks
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Prepare release artifact and SHA-256 checksum
+        id: metadata
+        run: |
+          APK_SOURCE="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_SOURCE" ]; then
+            echo "::error::Signed release APK not found at $APK_SOURCE"
+            exit 1
+          fi
+
+          mkdir -p release_assets
+          APK_OUT="release_assets/Ultimate-Rider-Booster.apk"
+          cp "$APK_SOURCE" "$APK_OUT"
+
+          APK_SHA256=$(sha256sum "$APK_OUT" | awk '{print $1}')
+          APK_SIZE=$(stat -c%s "$APK_OUT")
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION_NAME="${TAG_NAME#v}"
+
+          VERSION_CODE=$(grep -E "versionCode\s*=" app/build.gradle.kts | head -n1 | grep -oE "[0-9]+")
+          if [ -z "$VERSION_CODE" ]; then
+            echo "::error::Failed to extract versionCode from app/build.gradle.kts"
+            exit 1
+          fi
+
+          PREV_VERSION_CODE=0
+          if [ -f "version.json" ]; then
+            PREV_VERSION_CODE=$(python3 -c "import json; d=json.load(open('version.json')); print(int(d.get('versionCode', 0)))" 2>/dev/null || echo 0)
+          fi
+
+          if [ "$VERSION_CODE" -lt "$PREV_VERSION_CODE" ]; then
+            echo "::error::versionCode ($VERSION_CODE) must not decrease below published versionCode ($PREV_VERSION_CODE)."
+            exit 1
+          fi
+
+          OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+          REPO=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          APK_URL="https://github.com/${OWNER}/${REPO}/releases/download/${TAG_NAME}/Ultimate-Rider-Booster.apk"
+          RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          python3 - <<EOF
+          import json
+          manifest = {
+              "versionCode": int("${VERSION_CODE}"),
+              "versionName": "${VERSION_NAME}",
+              "releaseTitle": f"Ultimate Rider Booster ${TAG_NAME}",
+              "releaseNotes": "Verified signed APK release with Smart GPS Recovery, Talabat Rider detection, and Background Rider Mode.",
+              "apkUrl": "${APK_URL}",
+              "sha256": "${APK_SHA256}",
+              "mandatory": False,
+              "minSupportedVersionCode": 1,
+              "apkSizeBytes": int("${APK_SIZE}"),
+              "releaseDate": "${RELEASE_DATE}"
+          }
+          with open("version.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+          EOF
+
+          echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${APK_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f "${{ runner.temp }}/release-keystore.jks"
+
+      - name: Create GitHub Release and upload signed APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.tag }}
+          name: "Ultimate Rider Booster ${{ steps.metadata.outputs.tag }}"
+          body: |
+            Signed release APK for Ultimate Rider Booster `${{ steps.metadata.outputs.version_name }}` (versionCode `${{ steps.metadata.outputs.version_code }}`).
+            SHA-256: `${{ steps.metadata.outputs.sha256 }}`
+          files: |
+            release_assets/Ultimate-Rider-Booster.apk
+
+      - name: Commit and publish updated version.json to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main || true
+          git checkout -B main origin/main || git checkout -B main
+          git add version.json
+          if git diff --cached --quiet; then
+            echo "version.json unchanged; skipping commit."
+          else
+            git commit -m "chore(release): publish version.json for ${{ steps.metadata.outputs.tag }}"
+            git push origin main
+          fi

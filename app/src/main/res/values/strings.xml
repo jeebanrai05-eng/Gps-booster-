@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Ultimate Rider Booster</string>
+    <string name="app_tagline">Stay Connected. Stay Accurate. Stay Ready.</string>
+    <string name="nav_home">HOME</string>
+    <string name="nav_gps">GPS</string>
+    <string name="nav_network">NETWORK</string>
+    <string name="nav_rider">RIDER</string>
+    <string name="nav_tools">TOOLS</string>
+    <string name="boost_now">BOOST NOW</string>
+    <string name="settings_title">Settings &amp; Privacy</string>
+    <string name="talabat_check_title">TALABAT RIDER CHECK</string>
+    <string name="privacy_pledge">100% Local Diagnostics. Zero cloud uploads, zero hidden background tracking, zero ads, and no root access required.</string>
+    <string name="rider_mode_notification_title">ULTIMATE RIDER BOOSTER — Rider Mode Active</string>
+    <string name="start_rider_mode">START RIDER MODE</string>
+    <string name="stop_rider_mode">STOP RIDER MODE</string>
+    <string name="rider_mode_stopped">Monitoring Stopped</string>
+</resources>
