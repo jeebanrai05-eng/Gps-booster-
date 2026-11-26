@@ -122,7 +122,7 @@ jobs:
   release_apk:
     name: Sign & Publish Release APK
     needs: ci_build
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true)
     runs-on: ubuntu-latest
 
     steps:
@@ -235,14 +235,17 @@ jobs:
           APK_SHA256=$(sha256sum "$APK_OUT" | awk '{print $1}')
           APK_SIZE=$(stat -c%s "$APK_OUT")
 
+          VERSION_CODE=$(grep -E "versionCode\s*=" app/build.gradle.kts | head -n1 | grep -oE "[0-9]+")
+          VERSION_NAME_GRADLE=$(grep -E 'versionName\s*=' app/build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             TAG_NAME="${GITHUB_REF_NAME}"
-          else
+          elif [ -n "${{ inputs.release_tag }}" ]; then
             TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="v${VERSION_NAME_GRADLE}"
           fi
           VERSION_NAME="${TAG_NAME#v}"
-
-          VERSION_CODE=$(grep -E "versionCode\s*=" app/build.gradle.kts | head -n1 | grep -oE "[0-9]+")
           if [ -z "$VERSION_CODE" ]; then
             echo "::error::Failed to extract versionCode from app/build.gradle.kts"
             exit 1
@@ -295,7 +298,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.metadata.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: "Ultimate Rider Booster ${{ steps.metadata.outputs.tag }}"
+          make_latest: true
           body: |
             Signed release APK for Ultimate Rider Booster `${{ steps.metadata.outputs.version_name }}` (versionCode `${{ steps.metadata.outputs.version_code }}`).
             SHA-256: `${{ steps.metadata.outputs.sha256 }}`
