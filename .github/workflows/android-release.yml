@@ -104,7 +104,7 @@ jobs:
           fi
 
       - name: Run unit and Robolectric tests
-        run: ./gradlew testDebugUnitTest --no-daemon --console=plain
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace --console=plain
 
       - name: Run Android lint checks
         run: ./gradlew lintDebug --no-daemon --console=plain

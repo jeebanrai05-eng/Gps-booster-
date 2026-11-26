@@ -50,7 +50,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowNetworkCapabilities
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class RiderModulesRobolectricTest {
 
     @Test
