@@ -71,6 +71,15 @@ import com.example.ui.theme.LocalRiderColors
 import com.example.util.TelemetryFormatters
 import kotlinx.coroutines.delay
 
+import com.example.domain.model.BatteryIntelligenceState
+import com.example.domain.model.DeviceIntelligenceState
+import com.example.domain.model.DualSimState
+import com.example.domain.model.PerformancePeriodSummary
+import com.example.domain.model.RiderWorkspaceSummary
+import com.example.domain.model.RiderZonesState
+import com.example.ui.components.SuperBoosterHubCard
+import com.example.ui.components.SuperBoosterModule
+
 @Composable
 fun HomeDashboardScreen(
     gpsState: GpsTelemetryState,
@@ -81,6 +90,13 @@ fun HomeDashboardScreen(
     smartRecoveryState: SmartGpsRecoveryState,
     talabatDetection: TalabatDetectionResult,
     updateState: AppUpdateUiState,
+    deviceState: DeviceIntelligenceState,
+    dualSimState: DualSimState,
+    zonesState: RiderZonesState,
+    batteryState: BatteryIntelligenceState,
+    workspaceSummary: RiderWorkspaceSummary,
+    hasActiveWorkSession: Boolean,
+    dailyReport: PerformancePeriodSummary,
     settings: AppSettings,
     snackbarHostState: SnackbarHostState,
     onStartRiderMode: () -> Unit,
@@ -108,6 +124,7 @@ fun HomeDashboardScreen(
     onRetryInstallVerifiedApk: () -> Unit,
     onOpenReleasesPage: () -> Unit,
     onOpenSettingsScreen: () -> Unit,
+    onOpenSuperBoosterModule: (SuperBoosterModule) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalRiderColors.current
@@ -419,6 +436,22 @@ fun HomeDashboardScreen(
                     }
                 }
             }
+        }
+
+        // SUPER BOOSTER INTELLIGENCE HUB (v1.1.2)
+        item {
+            SuperBoosterHubCard(
+                deviceState = deviceState,
+                dualSimState = dualSimState,
+                zonesState = zonesState,
+                batteryState = batteryState,
+                workspaceSummary = workspaceSummary,
+                hasActiveSession = hasActiveWorkSession,
+                dailyReport = dailyReport,
+                animationIntensity = settings.animationIntensity,
+                onNavigateModule = onOpenSuperBoosterModule,
+                modifier = Modifier.widthIn(max = 640.dp)
+            )
         }
 
         // CARD 1: SMART GPS RECOVERY

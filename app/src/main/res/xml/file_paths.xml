@@ -6,4 +6,10 @@
     <cache-path
         name="apk_cache_updates"
         path="updates/" />
+    <cache-path
+        name="exported_reports"
+        path="reports/" />
+    <files-path
+        name="saved_reports"
+        path="reports/" />
 </paths>

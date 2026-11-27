@@ -175,12 +175,38 @@ class RiderModeService : Service() {
                 container.networkEngine.refreshNetworkSnapshot()
                 container.systemEngine.refreshSystemChecks()
                 container.smartGpsRecoveryEngine.updateSnapshotFromLiveEngines()
+                val device = container.deviceIntelligenceEngine.refreshSnapshot()
+                val activeSession = container.riderWorkspaceEngine.activeSession.value
+                val battery = container.batteryIntelligenceEngine.refreshSnapshot(
+                    persistHistory = true,
+                    activeSessionId = activeSession?.id
+                )
+                val dualSim = container.dualSimAnalyzerEngine.refreshSnapshot()
 
                 val gps = container.gpsEngine.state.value
                 val net = container.networkEngine.state.value
                 val sys = container.systemEngine.state.value
                 val problems = container.smartGpsRecoveryEngine.detectCurrentProblems(gps, sys)
                 val now = System.currentTimeMillis()
+
+                // Record zone & workspace telemetry only while Rider Mode or an active Work Session is enabled
+                if (activeSession?.status == "ACTIVE") {
+                    container.riderWorkspaceEngine.recordSessionTelemetrySample(
+                        gps = gps,
+                        network = net,
+                        battery = battery,
+                        device = device,
+                        dualSim = dualSim
+                    )
+                } else {
+                    container.riderZoneEngine.recordObservationIfAllowed(
+                        isSessionOrRiderActive = true,
+                        activeSessionId = null,
+                        gps = gps,
+                        network = net,
+                        dualSim = dualSim
+                    )
+                }
 
                 if (gps.fixStatus == GpsFixStatus.FIX_ACQUIRED) {
                     hadFixDuringSession = true
@@ -378,6 +404,9 @@ class RiderModeService : Service() {
         monitorJob?.cancel()
         monitorJob = null
         notificationManager.cancel(ALERT_NOTIFICATION_ID)
+        val container = (application as RiderBoosterApplication).container
+        val hasActiveWorkSession = container.riderWorkspaceEngine.activeSession.value?.status == "ACTIVE"
+        container.riderZoneEngine.updateActiveSessionFlag(hasActiveWorkSession)
         controller.markServiceStopped(restrictionNote)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()

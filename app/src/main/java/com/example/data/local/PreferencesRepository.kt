@@ -45,6 +45,7 @@ class PreferencesRepository(private val context: Context) {
         val GPS_INTERVAL_MS = longPreferencesKey("gps_interval_ms")
         val RIDER_MODE_ACTIVE = booleanPreferencesKey("rider_mode_active")
         val SELECTED_RIDER_PACKAGE = stringPreferencesKey("selected_rider_package")
+        val ZONE_RECORDING_PAUSED = booleanPreferencesKey("zone_recording_paused")
 
         // Update cache & preferences
         val AUTO_UPDATE_CHECK = booleanPreferencesKey("auto_update_check")
@@ -79,6 +80,10 @@ class PreferencesRepository(private val context: Context) {
 
     val selectedRiderPackageFlow: Flow<String?> = dataStore.data.map { prefs ->
         prefs[Keys.SELECTED_RIDER_PACKAGE]
+    }
+
+    val zoneRecordingPausedFlow: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.ZONE_RECORDING_PAUSED] ?: false
     }
 
     val updateCacheFlow: Flow<CachedUpdateSnapshot> = dataStore.data.map { prefs ->
@@ -141,6 +146,10 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun setAutoUpdateCheckEnabled(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_UPDATE_CHECK] = enabled }
+    }
+
+    suspend fun setZoneRecordingPaused(paused: Boolean) {
+        dataStore.edit { it[Keys.ZONE_RECORDING_PAUSED] = paused }
     }
 
     suspend fun saveUpdateCheckResult(checkedAtMs: Long, manifest: GitHubReleaseManifest?) {

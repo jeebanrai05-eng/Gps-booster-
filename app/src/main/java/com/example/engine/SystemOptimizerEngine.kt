@@ -31,16 +31,8 @@ class SystemOptimizerEngine(private val context: Context) {
     private val _state = MutableStateFlow(SystemCheckState())
     val state: StateFlow<SystemCheckState> = _state.asStateFlow()
 
-    private val talabatCandidatePackages = listOf(
-        "com.talabat.rider",
-        "com.deliveryhero.talabat.rider",
-        "com.talabat.courier",
-        "com.roadrunner.talabat",
-        "com.talabat.pandora.rider",
-        "com.talabat.logistics.rider",
-        "com.deliveryhero.logistics.rider",
-        "com.talabat.fleet"
-    )
+    private val talabatCandidatePackages: List<String>
+        get() = TalabatDetectorEngine.VERIFIED_TALABAT_RIDER_PACKAGES
 
     fun refreshSystemChecks() {
         val hasFine = ContextCompat.checkSelfPermission(

@@ -4,14 +4,22 @@ import android.content.Context
 import com.example.data.local.AppDatabase
 import com.example.data.local.DiagnosticsHistoryRepository
 import com.example.data.local.PreferencesRepository
+import com.example.data.local.RiderIntelligenceRepository
+import com.example.engine.BatteryIntelligenceEngine
 import com.example.engine.CompassSensorEngine
+import com.example.engine.DeviceIntelligenceEngine
+import com.example.engine.DualSimAnalyzerEngine
 import com.example.engine.GpsMonitorEngine
 import com.example.engine.NetworkDiagnosticsEngine
 import com.example.engine.OneTapDiagnosticRunner
+import com.example.engine.PerformanceReportEngine
 import com.example.engine.RiderModeController
+import com.example.engine.RiderWorkspaceEngine
+import com.example.engine.RiderZoneEngine
 import com.example.engine.SmartGpsRecoveryEngine
 import com.example.engine.SystemOptimizerEngine
 import com.example.engine.TalabatDetectorEngine
+import com.example.engine.TroubleshootingEngine
 import com.example.update.GitHubUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +32,9 @@ class AppContainer(context: Context) {
     val database: AppDatabase by lazy { AppDatabase.getInstance(appContext) }
     val historyRepository: DiagnosticsHistoryRepository by lazy {
         DiagnosticsHistoryRepository(database.diagnosticDao())
+    }
+    val riderIntelligenceRepository: RiderIntelligenceRepository by lazy {
+        RiderIntelligenceRepository(database.riderIntelligenceDao())
     }
     val preferencesRepository: PreferencesRepository by lazy {
         PreferencesRepository(appContext)
@@ -72,4 +83,32 @@ class AppContainer(context: Context) {
             historyRepository = historyRepository
         )
     }
+
+    // Advanced Rider Intelligence Engines (v1.1.2)
+    val deviceIntelligenceEngine: DeviceIntelligenceEngine by lazy {
+        DeviceIntelligenceEngine(appContext, appScope)
+    }
+    val dualSimAnalyzerEngine: DualSimAnalyzerEngine by lazy {
+        DualSimAnalyzerEngine(appContext, riderIntelligenceRepository, appScope)
+    }
+    val batteryIntelligenceEngine: BatteryIntelligenceEngine by lazy {
+        BatteryIntelligenceEngine(appContext, riderIntelligenceRepository, appScope)
+    }
+    val riderZoneEngine: RiderZoneEngine by lazy {
+        RiderZoneEngine(riderIntelligenceRepository, preferencesRepository, appScope)
+    }
+    val riderWorkspaceEngine: RiderWorkspaceEngine by lazy {
+        RiderWorkspaceEngine(
+            repository = riderIntelligenceRepository,
+            batteryEngine = batteryIntelligenceEngine,
+            deviceEngine = deviceIntelligenceEngine,
+            gpsEngine = gpsEngine,
+            networkEngine = networkEngine,
+            dualSimEngine = dualSimAnalyzerEngine,
+            zoneEngine = riderZoneEngine,
+            scope = appScope
+        )
+    }
+    val troubleshootingEngine: TroubleshootingEngine by lazy { TroubleshootingEngine() }
+    val performanceReportEngine: PerformanceReportEngine by lazy { PerformanceReportEngine() }
 }

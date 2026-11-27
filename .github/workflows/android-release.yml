@@ -17,9 +17,9 @@ on:
         default: true
         type: boolean
       release_tag:
-        description: 'Release tag name (only used when create_release is true, e.g. v1.1.1)'
+        description: 'Release tag name (only used when create_release is true, e.g. v1.1.2)'
         required: false
-        default: 'v1.1.1'
+        default: 'v1.1.2'
         type: string
 
 permissions:
@@ -318,7 +318,7 @@ jobs:
               "versionCode": int("${VERSION_CODE}"),
               "versionName": "${VERSION_NAME}",
               "releaseTitle": f"Ultimate Rider Booster ${TAG_NAME}",
-              "releaseNotes": "Verified signed APK release with Smart GPS Recovery, Talabat Rider detection, and Background Rider Mode.",
+              "releaseNotes": "Ultimate Super Booster v1.1.2: Smart Device Intelligence, Dual SIM Analyzer, Rider Zones, Battery Health, Work Session Workspace & Reports.",
               "apkUrl": "${APK_URL}",
               "sha256": "${APK_SHA256}",
               "mandatory": False,

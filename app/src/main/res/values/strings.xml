@@ -14,4 +14,12 @@
     <string name="start_rider_mode">START RIDER MODE</string>
     <string name="stop_rider_mode">STOP RIDER MODE</string>
     <string name="rider_mode_stopped">Monitoring Stopped</string>
+    <string name="intel_hub_title">SUPER BOOSTER INTELLIGENCE</string>
+    <string name="smart_intel_title">SMART RIDER INTELLIGENCE</string>
+    <string name="dual_sim_title">DUAL SIM INTELLIGENCE</string>
+    <string name="rider_zones_title">RIDER ZONE INTELLIGENCE</string>
+    <string name="battery_health_title">SMART BATTERY INTELLIGENCE</string>
+    <string name="rider_workspace_title">SMART RIDER WORKSPACE</string>
+    <string name="performance_reports_title">RIDER PERFORMANCE REPORTS</string>
+    <string name="troubleshooting_title">INTELLIGENT TROUBLESHOOTING</string>
 </resources>

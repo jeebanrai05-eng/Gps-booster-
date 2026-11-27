@@ -289,8 +289,9 @@ class TalabatDetectorEngine(
 
     companion object {
         /**
-         * Verified Rider/Courier package candidates. Never includes the consumer food-ordering
-         * package "com.talabat" so Rider Launch never opens the wrong app automatically.
+         * Verified Rider/Courier package candidates (including Delivery Hero SE / Pandora builds).
+         * Never includes the consumer food-ordering package "com.talabat" so Rider Launch never
+         * opens the wrong app automatically.
          */
         val VERIFIED_TALABAT_RIDER_PACKAGES = listOf(
             "com.talabat.rider",
@@ -298,13 +299,19 @@ class TalabatDetectorEngine(
             "com.talabat.courier",
             "com.roadrunner.talabat",
             "com.talabat.pandora.rider",
+            "com.deliveryhero.pandora.talabat.rider",
+            "com.talabat.rider.app",
+            "com.deliveryhero.rider.talabat",
             "com.talabat.logistics.rider",
             "com.deliveryhero.logistics.rider",
+            "com.dh.talabat.rider",
+            "com.deliveryhero.pandora.rider",
+            "com.talabat.pandora",
             "com.talabat.fleet"
         )
 
         fun matchesTalabatRiderLabel(appLabel: String, packageName: String): Boolean {
-            val l = appLabel.lowercase()
+            val l = appLabel.replace(Regex("\\s+"), " ").trim().lowercase()
             val p = packageName.lowercase()
             if (p == "com.talabat") return false
             val hasTalabat = l.contains("talabat") || p.contains("talabat")
@@ -312,9 +319,11 @@ class TalabatDetectorEngine(
                 l.contains("courier") ||
                 l.contains("driver") ||
                 l.contains("roadrunner") ||
+                l.contains("delivery hero") ||
                 p.contains("rider") ||
                 p.contains("courier") ||
-                p.contains("roadrunner")
+                p.contains("roadrunner") ||
+                p.contains("deliveryhero")
             return hasTalabat && hasRiderKeyword
         }
     }

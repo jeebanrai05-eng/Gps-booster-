@@ -68,16 +68,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.platform.LocalContext
 import com.example.domain.model.UpdateCheckStatus
+import com.example.ui.components.SuperBoosterModule
 import com.example.ui.components.UpdateAvailableDialog
+import com.example.ui.screens.BatteryHealthScreen
+import com.example.ui.screens.DualSimScreen
 import com.example.ui.screens.GpsScreen
 import com.example.ui.screens.HomeDashboardScreen
+import com.example.ui.screens.IntelligenceScreen
 import com.example.ui.screens.NetworkScreen
+import com.example.ui.screens.PerformanceReportsScreen
 import com.example.ui.screens.RiderScreen
+import com.example.ui.screens.RiderWorkspaceScreen
+import com.example.ui.screens.RiderZonesScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.ToolsScreen
 import com.example.ui.theme.LocalRiderColors
 import com.example.ui.theme.RiderBoosterTheme
+import com.example.ui.viewmodel.RiderIntelligenceViewModel
 import com.example.ui.viewmodel.SettingsViewModel
 import com.example.ui.viewmodel.TelemetryViewModel
 
@@ -127,13 +136,29 @@ class MainActivity : ComponentActivity() {
                     gitHubUpdateManager = container.gitHubUpdateManager
                 )
             )
+            val intelligenceViewModel: RiderIntelligenceViewModel = viewModel(
+                factory = RiderIntelligenceViewModel.factory(
+                    deviceEngine = container.deviceIntelligenceEngine,
+                    dualSimEngine = container.dualSimAnalyzerEngine,
+                    batteryEngine = container.batteryIntelligenceEngine,
+                    zoneEngine = container.riderZoneEngine,
+                    workspaceEngine = container.riderWorkspaceEngine,
+                    troubleshootingEngine = container.troubleshootingEngine,
+                    reportEngine = container.performanceReportEngine,
+                    repository = container.riderIntelligenceRepository,
+                    gpsEngine = container.gpsEngine,
+                    networkEngine = container.networkEngine,
+                    systemEngine = container.systemEngine
+                )
+            )
 
             val settings by telemetryViewModel.settings.collectAsStateWithLifecycle()
 
             RiderBoosterTheme(darkTheme = settings.darkTheme) {
                 RiderBoosterAppRoot(
                     telemetryViewModel = telemetryViewModel,
-                    settingsViewModel = settingsViewModel
+                    settingsViewModel = settingsViewModel,
+                    intelligenceViewModel = intelligenceViewModel
                 )
             }
         }
@@ -143,8 +168,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RiderBoosterAppRoot(
     telemetryViewModel: TelemetryViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    intelligenceViewModel: RiderIntelligenceViewModel
 ) {
+    val context = LocalContext.current
     val gpsState by telemetryViewModel.gpsState.collectAsStateWithLifecycle()
     val networkState by telemetryViewModel.networkState.collectAsStateWithLifecycle()
     val systemState by telemetryViewModel.systemState.collectAsStateWithLifecycle()
@@ -157,11 +184,35 @@ fun RiderBoosterAppRoot(
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     val history by settingsViewModel.diagnosticHistory.collectAsStateWithLifecycle()
 
+    val deviceState by intelligenceViewModel.deviceState.collectAsStateWithLifecycle()
+    val dualSimState by intelligenceViewModel.dualSimState.collectAsStateWithLifecycle()
+    val batteryState by intelligenceViewModel.batteryState.collectAsStateWithLifecycle()
+    val zonesState by intelligenceViewModel.zonesState.collectAsStateWithLifecycle()
+    val activeWorkSession by intelligenceViewModel.activeSession.collectAsStateWithLifecycle()
+    val allWorkSessions by intelligenceViewModel.allSessions.collectAsStateWithLifecycle()
+    val liveSessionDurationMs by intelligenceViewModel.liveSessionDurationMs.collectAsStateWithLifecycle()
+    val workspaceSummary by intelligenceViewModel.workspaceSummary.collectAsStateWithLifecycle()
+    val timelineEvents by intelligenceViewModel.timelineEvents.collectAsStateWithLifecycle()
+    val batteryHistory by intelligenceViewModel.batteryHistory.collectAsStateWithLifecycle()
+    val signalHandovers by intelligenceViewModel.signalHandovers.collectAsStateWithLifecycle()
+    val troubleshootingItems by intelligenceViewModel.troubleshootingItems.collectAsStateWithLifecycle()
+    val dailyReport by intelligenceViewModel.dailyReport.collectAsStateWithLifecycle()
+    val weeklyReport by intelligenceViewModel.weeklyReport.collectAsStateWithLifecycle()
+
     val colors = LocalRiderColors.current
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     var showPermissionRationale by remember { mutableStateOf(false) }
     var pendingStartRiderModeAfterPermission by remember { mutableStateOf(false) }
+
+    val phoneStatePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        intelligenceViewModel.onPhoneStatePermissionUpdated()
+    }
+    val requestPhoneStatePermission: () -> Unit = {
+        phoneStatePermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -229,8 +280,14 @@ fun RiderBoosterAppRoot(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> telemetryViewModel.onForegroundResume()
-                Lifecycle.Event.ON_PAUSE -> telemetryViewModel.onBackgroundPause()
+                Lifecycle.Event.ON_RESUME -> {
+                    telemetryViewModel.onForegroundResume()
+                    intelligenceViewModel.onForegroundResume()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    telemetryViewModel.onBackgroundPause()
+                    intelligenceViewModel.onBackgroundPause()
+                }
                 else -> Unit
             }
         }
@@ -238,6 +295,7 @@ fun RiderBoosterAppRoot(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             telemetryViewModel.onBackgroundPause()
+            intelligenceViewModel.onBackgroundPause()
         }
     }
 
@@ -290,7 +348,21 @@ fun RiderBoosterAppRoot(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val isSettingsRoute = currentDestination?.route == ROUTE_SETTINGS
+    val secondaryRoutes = setOf(
+        ROUTE_SETTINGS,
+        SuperBoosterModule.INTELLIGENCE.route,
+        SuperBoosterModule.DUAL_SIM.route,
+        SuperBoosterModule.ZONES.route,
+        SuperBoosterModule.BATTERY.route,
+        SuperBoosterModule.WORKSPACE.route,
+        SuperBoosterModule.REPORTS.route
+    )
+    val isSettingsRoute = currentDestination?.route in secondaryRoutes
+    val navigateToModule: (SuperBoosterModule) -> Unit = { mod ->
+        navController.navigate(mod.route) {
+            launchSingleTop = true
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -420,6 +492,13 @@ fun RiderBoosterAppRoot(
                                 smartRecoveryState = smartRecoveryState,
                                 talabatDetection = talabatDetection,
                                 updateState = updateState,
+                                deviceState = deviceState,
+                                dualSimState = dualSimState,
+                                zonesState = zonesState,
+                                batteryState = batteryState,
+                                workspaceSummary = workspaceSummary,
+                                hasActiveWorkSession = activeWorkSession?.status == "ACTIVE",
+                                dailyReport = dailyReport,
                                 settings = settings,
                                 snackbarHostState = snackbarHostState,
                                 onStartRiderMode = startRiderModeWithPermissions,
@@ -455,7 +534,8 @@ fun RiderBoosterAppRoot(
                                     navController.navigate(ROUTE_SETTINGS) {
                                         launchSingleTop = true
                                     }
-                                }
+                                },
+                                onOpenSuperBoosterModule = navigateToModule
                             )
                         }
 
@@ -557,6 +637,92 @@ fun RiderBoosterAppRoot(
                                 onOpenReleasesPage = { settingsViewModel.openGitHubReleasesFallback() },
                                 onClearHistory = { settingsViewModel.clearHistory() },
                                 onOpenAppPermissions = { telemetryViewModel.openAppPermissions() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.INTELLIGENCE.route) {
+                            IntelligenceScreen(
+                                deviceState = deviceState,
+                                troubleshootingItems = troubleshootingItems,
+                                settings = settings,
+                                onRefresh = { intelligenceViewModel.refreshAll() },
+                                onExecuteAction = { actionType ->
+                                    telemetryViewModel.executeRecommendedAction(
+                                        actionType = actionType,
+                                        onRequestLocationPermission = requestLocationPermission
+                                    )
+                                },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.DUAL_SIM.route) {
+                            DualSimScreen(
+                                dualSimState = dualSimState,
+                                handovers = signalHandovers,
+                                settings = settings,
+                                onRequestPhoneStatePermission = requestPhoneStatePermission,
+                                onRefresh = { intelligenceViewModel.refreshAll() },
+                                onOpenSimSettings = { intelligenceViewModel.openSimSettings() },
+                                onOpenInternetPanel = { intelligenceViewModel.openInternetPanel() },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.ZONES.route) {
+                            RiderZonesScreen(
+                                zonesState = zonesState,
+                                settings = settings,
+                                onTogglePauseRecording = { intelligenceViewModel.setZoneRecordingPaused(it) },
+                                onDeleteAllHistory = { intelligenceViewModel.deleteAllZoneHistory() },
+                                onOpenWorkspace = { navigateToModule(SuperBoosterModule.WORKSPACE) },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.BATTERY.route) {
+                            BatteryHealthScreen(
+                                batteryState = batteryState,
+                                batteryHistory = batteryHistory,
+                                settings = settings,
+                                onRefresh = { intelligenceViewModel.refreshAll() },
+                                onOpenBatterySettings = { telemetryViewModel.openBatterySettings() },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.WORKSPACE.route) {
+                            RiderWorkspaceScreen(
+                                activeSession = activeWorkSession,
+                                liveDurationMs = liveSessionDurationMs,
+                                workspaceSummary = workspaceSummary,
+                                allSessions = allWorkSessions,
+                                timelineEvents = timelineEvents,
+                                settings = settings,
+                                snackbarHostState = snackbarHostState,
+                                onStartSession = { intelligenceViewModel.startWorkSession() },
+                                onPauseSession = { intelligenceViewModel.pauseWorkSession() },
+                                onResumeSession = { intelligenceViewModel.resumeWorkSession() },
+                                onEndSession = { intelligenceViewModel.endWorkSession() },
+                                onExportCsv = { intelligenceViewModel.exportCsv(context) },
+                                onExportPdf = { intelligenceViewModel.exportPdf(context) },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(SuperBoosterModule.REPORTS.route) {
+                            PerformanceReportsScreen(
+                                dailyReport = dailyReport,
+                                weeklyReport = weeklyReport,
+                                settings = settings,
+                                onOpenWorkspace = { navigateToModule(SuperBoosterModule.WORKSPACE) },
+                                onSelectModule = navigateToModule,
+                                onBack = { navController.popBackStack() }
                             )
                         }
                     }
