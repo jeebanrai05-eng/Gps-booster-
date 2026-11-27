@@ -2,9 +2,11 @@
   "versionCode": 3,
   "versionName": "1.1.1",
   "releaseTitle": "Ultimate Rider Booster v1.1.1",
-  "releaseNotes": "v1.1.1: Fixed in-app update checker, upgraded GPS recovery engine, optimized Talabat Rider detection, and improved CI/CD release workflow.",
+  "releaseNotes": "Verified signed APK release with Smart GPS Recovery, Talabat Rider detection, and Background Rider Mode.",
   "apkUrl": "https://github.com/jeebanrai05-eng/Gps-booster-/releases/download/v1.1.1/Ultimate-Rider-Booster.apk",
-  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "sha256": "1a44dfe975a9ddee5202200fb6440d1a12f3ccb8b627430ae290e97935e3f9f5",
   "mandatory": false,
-  "minSupportedVersionCode": 1
+  "minSupportedVersionCode": 1,
+  "apkSizeBytes": 13732639,
+  "releaseDate": "2026-11-27T09:05:25Z"
 }
